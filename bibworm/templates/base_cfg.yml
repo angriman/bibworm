@@ -1,0 +1,45 @@
+bib_file: "references.bib"
+
+inproceedings:
+    author: r
+    address: o
+    title: r
+    booktitle: r
+    pages: o
+    publisher: o
+    year: r
+    doi: o
+    url: o
+    note: o
+
+    series: d
+    issue: d
+    volume: d
+
+article:
+    author: r
+    title: r
+    address: o
+    journal: r
+    volume: o
+    number: o
+    pages: o
+    year: r
+    doi: o
+    url: o
+    note: o
+
+    publisher: d
+    issue: d
+
+book:
+    author: r
+    title: r
+    address: o
+    year: r
+    doi: o
+    url: o
+    note: o
+
+    publisher: d
+    issue: d

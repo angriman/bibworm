@@ -3,6 +3,7 @@ from bibtexparser.bwriter import BibTexWriter
 from bibtexparser.bibdatabase import BibDatabase
 from scholarly import scholarly
 
+import json
 import os
 import re
 import requests
@@ -12,6 +13,7 @@ CFG_FILE_NAME = "bibworm.yml"
 
 DB_PATH = ".bibworm/db.bib"
 DBLP_BASE_URL = "https://dblp.uni-trier.de/rec/"
+DBLP_API_URL = "https://dblp.org/search/publ/api?q="
 
 syn = {"year" : ["pub_year"]}
 
@@ -19,6 +21,15 @@ def _download_dblp_entry(bib_key):
     url = DBLP_BASE_URL + bib_key[5:] + ".bib?param=1"
     response = requests.get(url)
     return response.content, response.status_code == 200
+
+def _dblp_key_from_title(title):
+    url = title.lower()
+    url = title.replace(" ", "+")
+    url = DBLP_API_URL + url + "&format=json"
+    response = requests.get(url)
+    if response.status_code != 200:
+        return None
+    return json.loads(response.content.decode("utf-8"))["result"]["hits"]["hit"][0]["info"]["key"]
 
 def _download_gscholar_entry(bib_key):
     try:
@@ -111,31 +122,48 @@ def write_bib_file():
     with open(cfg["bib_file"], "w") as f:
         f.write(BibTexWriter().write(bib_db))
 
-def add_entry(bib_key):
+def _update_db(new_entry, db):
+    fetched_db = btp.loads(new_entry)
+    assert(len(fetched_db.entries) == 1)
+    ans = input(f"Add bib entry\n{new_entry.strip()}?\n[yN]")
+    if ans != "y":
+        print("Entry discarded")
+        return
+    new_entry = fetched_db.entries_dict
+    db.update(new_entry)
+    _write_db(db)
+
+def add_dblp_key(bib_key):
+    assert(bib_key.startswith("DBLP"))
 
     db = _read_db()
+    if bib_key in [key for key, _ in db.items()]:
+        print("Key already in the database")
+        return
 
-    if not bib_key in [key for key, _ in db.items()]:
-        if bib_key.startswith("DBLP"):
-            print(f"Downloading DBLP bib entry {bib_key}...")
-            entry, success = _download_dblp_entry(bib_key)
-            if not success:
-                print("Failed to download entry")
-                return
-        else:
-            print(f"Downloading bib entry {bib_key} from google scholar...")
-            entry = _download_gscholar_entry(bib_key)
-            if entry is None:
-                print("Failed to download entry")
-                return
+    entry, success = _download_dblp_entry(bib_key)
+    if not success:
+        print("Failed to download entry")
+        return
 
-        fetched_db = btp.loads(entry)
-        assert(len(fetched_db.entries) == 1)
-        entry = fetched_db.entries_dict
-        db.update(entry)
-        _write_db(db)
-    else:
-        print("bib_key already stored in the database")
+    _update_db(entry, db)
+
+def add_dblp_title(title):
+    bib_key = _dblp_key_from_title(title)
+    if bib_key is None:
+        print("No publication found")
+        return
+    add_dblp_key("DBLP:" + bib_key)
+
+def add_google_scholar_title(title):
+    db = _read_db()
+
+    entry = _download_gscholar_entry(title)
+    if entry is None:
+        print("Failed to download entry")
+        return
+
+    _update_db(entry, db)
 
 def del_entry(bib_key):
 

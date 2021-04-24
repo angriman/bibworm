@@ -29,7 +29,10 @@ def _dblp_key_from_title(title):
     response = requests.get(url)
     if response.status_code != 200:
         return None
-    return json.loads(response.content.decode("utf-8"))["result"]["hits"]["hit"][0]["info"]["key"]
+    hits = json.loads(response.content.decode("utf-8"))["result"]["hits"]
+    if not "hit" in hits:
+        return None
+    return hits["hit"][0]["info"]["key"]
 
 def _download_gscholar_entry(bib_key):
     try:
@@ -125,11 +128,13 @@ def write_bib_file():
 def _update_db(new_entry, db):
     fetched_db = btp.loads(new_entry)
     assert(len(fetched_db.entries) == 1)
-    ans = input(f"Add bib entry\n{new_entry.strip()}?\n[yN]")
+    new_entry = fetched_db.entries_dict
+    tmp_db = BibDatabase()
+    tmp_db.entries = [_tidy_entry(fetched_db.entries[0], _get_cfg())]
+    ans = input(f"Add bib entry below?\n{BibTexWriter().write(tmp_db)}[yN]")
     if ans != "y":
         print("Entry discarded")
         return
-    new_entry = fetched_db.entries_dict
     db.update(new_entry)
     _write_db(db)
 
@@ -138,7 +143,7 @@ def add_dblp_key(bib_key):
 
     db = _read_db()
     if bib_key in [key for key, _ in db.items()]:
-        print("Key already in the database")
+        print("Already stored in the database")
         return
 
     entry, success = _download_dblp_entry(bib_key)

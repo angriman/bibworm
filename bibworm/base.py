@@ -3,6 +3,7 @@ from bibtexparser.bwriter import BibTexWriter
 from bibtexparser.bibdatabase import BibDatabase
 from scholarly import scholarly
 
+import copy
 import json
 import os
 import re
@@ -18,9 +19,16 @@ DBLP_API_URL = "https://dblp.org/search/publ/api?q="
 syn = {"year" : ["pub_year"]}
 
 def _download_dblp_entry(bib_key):
-    url = DBLP_BASE_URL + bib_key[5:] + ".bib?param=1"
-    response = requests.get(url)
-    return response.content, response.status_code == 200
+    responses, success = [], True
+    for condensed in [1,0]:
+        url = DBLP_BASE_URL + bib_key[5:] + f".bib?param={condensed}"
+        response = requests.get(url)
+        responses.append(response.content)
+        sucess = success and response.status_code == 200
+        if not success:
+            return _, False
+
+    return responses, True
 
 def _dblp_key_from_title(title):
     url = title.lower()
@@ -72,8 +80,15 @@ def _write_db(db):
         f.write(yaml.dump(db, default_flow_style=False))
     write_bib_file()
 
+def _format_entry(entry):
+    for key in entry.keys():
+        entry[key] = entry[key].strip()
+        entry[key] = entry[key].replace("\n", " ") # do not wrap lines
+        entry[key] = re.sub("\s{2,}", " ", entry[key]) # remove multiple spaces after each other
+    return entry
+
 def _tidy_entry(entry, cfg):
-    etype, eid = entry['ENTRYTYPE'], entry['ID']
+    etype, eid = entry["ENTRYTYPE"], entry["ID"]
     if not etype in cfg:
         print("Entry type not provided in config file:", etype)
         return None
@@ -101,11 +116,7 @@ def _tidy_entry(entry, cfg):
             if field in entry:
                 t_entry[field] = entry[field]
 
-    for key in t_entry.keys():
-        t_entry[key] = t_entry[key].strip()
-        t_entry[key] = t_entry[key].replace("\n", " ") # do not wrap lines
-        t_entry[key] = re.sub("\s{2,}", " ", t_entry[key]) # remove multiple spaces after each other
-
+    t_entry = _format_entry(t_entry)
     t_entry.update({"ENTRYTYPE": etype, "ID": eid})
     return t_entry
 
@@ -116,6 +127,8 @@ def write_bib_file():
     tidy_entries = []
 
     for bib_key, entry in db.items():
+        if bib_key.startswith("DBLP") and "condensed" in entry and cfg["dblp_condensed"] == "y":
+            entry = entry["condensed"][bib_key]
         t_entry = _tidy_entry(entry, cfg)
         if t_entry is not None:
             tidy_entries.append(t_entry)
@@ -125,17 +138,29 @@ def write_bib_file():
     with open(cfg["bib_file"], "w") as f:
         f.write(BibTexWriter().write(bib_db))
 
-def _update_db(new_entry, db):
-    fetched_db = btp.loads(new_entry)
-    assert(len(fetched_db.entries) == 1)
-    new_entry = fetched_db.entries_dict
+def _first_key(d):
+    return list(d.keys())[0]
+
+def _update_db(entry, db):
+    cfg = _get_cfg()
+#    fetched_db = btp.loads(entry)
+#    assert(len(fetched_db.entries) == 1)
+#    entry = fetched_db.entries_dict
     tmp_db = BibDatabase()
-    tmp_db.entries = [_tidy_entry(fetched_db.entries[0], _get_cfg())]
-    ans = input(f"Add bib entry below?\n{BibTexWriter().write(tmp_db)}[yN]")
+    to_tidy = copy.deepcopy(entry)
+    bib_key = _first_key(entry)
+    if "condensed" in entry[bib_key]:
+        del(to_tidy[bib_key]["condensed"])
+
+    to_tidy = to_tidy.popitem()[1]
+    tmp_db.entries = [_format_entry(to_tidy)]
+
+    ans = input(f"Add bib entry below?\n{BibTexWriter().write(tmp_db)}[y/n]")
     if ans != "y":
         print("Entry discarded")
         return
-    db.update(new_entry)
+
+    db.update(entry)
     _write_db(db)
 
 def add_dblp_key(bib_key):
@@ -146,17 +171,20 @@ def add_dblp_key(bib_key):
         print("Already stored in the database")
         return
 
-    entry, success = _download_dblp_entry(bib_key)
+    entries, success = _download_dblp_entry(bib_key)
     if not success:
         print("Failed to download entry")
         return
 
+    entry = btp.loads(entries[0]).entries_dict
+    entry[_first_key(entry)]["condensed"] = btp.loads(entries[1]).entries_dict
     _update_db(entry, db)
 
 def add_dblp_title(title):
     bib_key = _dblp_key_from_title(title)
     if bib_key is None:
-        print("No publication found")
+        print("Nothing found on dblp, searching on Google Scholar...")
+        add_google_scholar_title(title)
         return
     add_dblp_key("DBLP:" + bib_key)
 
@@ -168,7 +196,7 @@ def add_google_scholar_title(title):
         print("Failed to download entry")
         return
 
-    _update_db(entry, db)
+    _update_db(btp.loads(entry).entries_dict, db)
 
 def del_entry(bib_key):
 

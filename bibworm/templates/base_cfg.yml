@@ -1,4 +1,5 @@
 bib_file: "references.bib"
+dblp_condensed: n
 
 inproceedings:
     author: r

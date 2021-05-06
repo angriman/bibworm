@@ -108,7 +108,7 @@ def _tidy_entry(entry, cfg):
                 f_syn = find_synonym(field)
                 if f_syn is None:
                     print(f"Required field '{field}' not provided by entry {eid}")
-                    return None
+                    continue
                 t_entry[field] = entry[f_syn]
             else:
                 t_entry[field] = entry[field]

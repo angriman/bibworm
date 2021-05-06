@@ -44,3 +44,9 @@ book:
 
     publisher: d
     issue: d
+
+techreport:
+    author: r
+    title: r
+    institution: r
+    year: r

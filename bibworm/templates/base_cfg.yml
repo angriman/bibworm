@@ -50,3 +50,10 @@ techreport:
     title: r
     institution: r
     year: r
+
+phdthesis:
+    author: r
+    abstract: o
+    year: r
+    school: o
+    title: r

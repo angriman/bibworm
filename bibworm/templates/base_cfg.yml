@@ -57,3 +57,21 @@ phdthesis:
     year: r
     school: o
     title: r
+
+incollection:
+    author: r
+    title: r
+    booktitle: r
+    publisher: o
+    year: r
+    editor: o
+    volume: o
+    number: o
+    series: o
+    chapter: o
+    pages: o
+    edition: o
+    month: o
+    address: o
+    note: d
+    annote: d

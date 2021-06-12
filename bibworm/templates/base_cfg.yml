@@ -75,3 +75,14 @@ incollection:
     address: o
     note: d
     annote: d
+
+misc:
+    author: r
+    address: o
+    title: r
+    booktitle: o
+    publisher: o
+    year: r
+    doi: o
+    url: o
+    note: o

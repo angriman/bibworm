@@ -144,9 +144,6 @@ def _first_key(d):
 
 def _update_db(entry, db):
     cfg = _get_cfg()
-#    fetched_db = btp.loads(entry)
-#    assert(len(fetched_db.entries) == 1)
-#    entry = fetched_db.entries_dict
     tmp_db = BibDatabase()
     to_tidy = copy.deepcopy(entry)
     bib_key = _first_key(entry)

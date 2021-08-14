@@ -6,6 +6,7 @@ from scholarly import scholarly
 import copy
 import json
 import os
+import pyperclip
 import re
 import requests
 import yaml
@@ -162,6 +163,7 @@ def _update_db(entry, db):
 
     db.update(entry)
     _write_db(db)
+    pyperclip.copy(bib_key)
 
 def add_dblp_key(bib_key):
     assert(bib_key.startswith("DBLP"))
